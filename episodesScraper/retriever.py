@@ -38,10 +38,19 @@ def retry_timeout_urls():
             except Exception as exc:
                 print(f"URL generated an exception during retry: {exc}")
 
+
 def remove_duplicates_from_successful_urls():
     global successful_urls
     with lock:
-        successful_urls = list(set(successful_urls))
+        # Create a new list without duplicates, preserving the original order
+        seen_urls = set()
+        unique_successful_urls = []
+        for entry in successful_urls:
+            if entry['url'] not in seen_urls:
+                unique_successful_urls.append(entry)
+                seen_urls.add(entry['url'])
+
+        successful_urls = unique_successful_urls
         print(f"Removed duplicates from successful URLs. {len(successful_urls)} unique URLs remain.")
 
 def get_proxies_from_api(api_url):
@@ -70,18 +79,26 @@ def load_timeout_urls():
         timeout_urls = []
 
 def scrape_url(url, proxy, sequential_number):
-    global successful_requests, successful_urls, timeout_urls
+    global successful_requests
     try:
         response = requests.get(url, proxies=proxy, timeout=PROXY_TIMEOUT)
         if response.status_code == 200:
             with lock:
                 successful_requests += 1
-                successful_urls.append(url)
+                # Extract filename from URL or use another method to determine it
+                filename = url.split('/')[-1]
+                # Append a dictionary for the successful URL
+                successful_urls.append({
+                    "url": url,
+                    "downloaded": False,  # Initially set to False; update after downloading
+                    "filename": filename
+                })
             print(f"Success #{successful_requests}: {url} - Sequential Number: {sequential_number}")
             return True
     except requests.exceptions.Timeout:
         with lock:
-            timeout_urls.append(url)  # Add the URL to the timeout list
+            # For timeout_urls, you might also want to track them with structured data
+            timeout_urls.append(url)  # Keep it simple for now, but consider using dictionaries here too
         print(f"Timeout fetching {url} - Sequential Number: {sequential_number}")
         return False
     except Exception as e:
