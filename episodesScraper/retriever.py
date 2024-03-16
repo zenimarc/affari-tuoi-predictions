@@ -158,6 +158,4 @@ def start(start, end):
     api_url = "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=ipport&format=text"
     base_url = "https://creativemedia4-rai-it.akamaized.net/podcastcdn/raiuno_2/Affari_Tuoi/Affarituoi_puntate/2{}_1800.mp4"
     # fatto 2410000 to 2499999 e 2500000 to 2699999 e 2200000 to 2399999 e 1500000 to 2199999
-    start = 1000000
-    end = 1499999  # Example range, adjust as needed
     work(api_url, base_url, start, end)
