@@ -7,7 +7,7 @@ import numpy as np
 # load the model that can be used by other packages
 detection_model = YOLO(DETECTION_MODEL_PATH)
 
-def detect_boxes_yolo(frame: np.ndarray):
+def detect_boxes_yolo(frames: np.ndarray):
     """
     Perform object detection on a frame using YOLOv8.
 
@@ -18,14 +18,14 @@ def detect_boxes_yolo(frame: np.ndarray):
         The frame with bounding boxes and labels drawn on it.
     """
     # Perform detection
-    results = detection_model.predict(source=frame)
+    results = detection_model.predict(source=frames)
 
     return results
 
 
 
 reader = easyocr.Reader(['en'], gpu=True)
-def recognize_digits(roi: np.ndarray) -> str:
+def recognize_euros(roi: np.ndarray) -> str:
     """
     Perform OCR on a single image region (ROI) to recognize digits.
 
@@ -36,7 +36,7 @@ def recognize_digits(roi: np.ndarray) -> str:
         str: A string containing the recognized digits separated by spaces.
     """
     # Perform OCR on the single ROI
-    text = reader.readtext(roi, detail=0, allowlist='0123456789')
+    text = reader.readtext(roi, detail=0, allowlist='0123456789€.')
 
     # Join detected digits into a single string
     recognized_text = ' '.join(text)
