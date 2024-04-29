@@ -1,4 +1,4 @@
-from game_analyzer.game_analyzer import GameAnalyzer
+from game_analyzer.game_analyzer import GameAnalyzer, fast_is_same_state_checksum, is_valid_state, is_valid_state_wrt_previous
 from settings import BASE_DIR
 import pytest
 
@@ -18,5 +18,197 @@ def test_extract_key_frames_and_detect_boxes():
     frames = game_analyzer.extract_key_frames()
     results = game_analyzer.detect_boxes_on_frames(frames[:20])
     assert True
+
+def test_fast_is_same_state_checksum():
+    state1 = {
+        'seq': 1,
+        'available_prizes': [20, 100, 50],
+        'offer': 20000,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state2 = {
+        'seq': 2,
+        'available_prizes': [20, 100, 50],
+        'offer': 20000,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state3 = {
+        'seq': 3,
+        'available_prizes': [20, 100, 50, 10000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state4 = {
+        'seq': 4,
+        'available_prizes': [1, 1, 1, 1],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state5 = {
+        'seq': 5,
+        'available_prizes': [1, 1, 2],
+        'offer': True,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state6 = {
+        'seq': 6,
+        'available_prizes': [1, 1, 2],
+        'offer': None,
+        'accepted_offer': True,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+
+    assert fast_is_same_state_checksum(state1, state1)
+    assert fast_is_same_state_checksum(state1, state2)
+    assert fast_is_same_state_checksum(state3, state4)
+    assert fast_is_same_state_checksum(state5, state2)
+    assert not fast_is_same_state_checksum(state5, state6)
+
+def test_is_valid_state():
+    state = {
+        'seq': 1,
+        'available_prizes': [1, 1, 2],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert not is_valid_state(state)
+    state = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert is_valid_state(state)
+    state = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': 300001,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert not is_valid_state(state)
+    state = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': 200000,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert is_valid_state(state)
+    state = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': 200000,
+        'accepted_offer': None,
+        'change': True,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert not is_valid_state(state)
+    state = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': True,
+        'accepted_change': True,
+        'lucky_region_warning': None,
+    }
+    assert not is_valid_state(state)
+
+
+def test_is_valid_state_wrt_previous():
+    state1 = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': 20000,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state2 = {
+        'seq': 2,
+        'available_prizes': [100, 200, 300000],
+        'offer': None,
+        'accepted_offer': 30000,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert not is_valid_state_wrt_previous(state2, state1)
+
+    state1 = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state2 = {
+        'seq': 2,
+        'available_prizes': [100, 200, 300000, 20000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert not is_valid_state_wrt_previous(state2, state1)
+
+    state1 = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': 20000,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state2 = {
+        'seq': 2,
+        'available_prizes': [100, 200],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert is_valid_state_wrt_previous(state2, state1)
+
+
+
+
+
+
 
 
