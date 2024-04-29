@@ -35,8 +35,11 @@ def recognize_euros(roi: np.ndarray) -> str:
     Returns:
         str: A string containing the recognized digits separated by spaces.
     """
+    grayscale = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    hist = cv2.equalizeHist(grayscale)
     # Perform OCR on the single ROI
-    text = reader.readtext(roi, detail=0, allowlist='0123456789€.')
+    text = reader.recognize(hist, detail=0, allowlist='0123456789€.')
+
 
     # Join detected digits into a single string
     recognized_text = ' '.join(text)

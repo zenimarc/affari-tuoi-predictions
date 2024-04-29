@@ -12,7 +12,7 @@ FRAME_EXTRACTION_INTERVAL_SECONDS = 4
 class DetectionClass:
     ACCEPTED_CHANGE = "accepted_change"
     ACCEPTED_OFFER = "accepted_offer"
-    AVAILABLE_PRIZES = "available_prizes"
+    AVAILABLE_PRIZE = "available_prize"
     CHANGE = "change"
     LUCKY_REGION_WARNING = "lucky_region_warning"
     OFFER = "offer"
