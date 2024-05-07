@@ -1,12 +1,9 @@
 import cv2
 from ultralytics import YOLO
-from settings import VIDEO_DIR, YOLO_CLASSES, FRAME_EXTRACTION_INTERVAL_SECONDS, DetectionClass
+from settings import VIDEO_DIR, YOLO_CLASSES_NAMES_TO_INT, FRAME_EXTRACTION_INTERVAL_SECONDS, DetectionClass, POSSIBLE_PRIZES, YOLO_CLASSES_INT_TO_NAMES
 from game_analyzer.model import detect_boxes_yolo, recognize_euros
 from concurrent.futures import ProcessPoolExecutor, as_completed
-
-
-POSSIBLE_PRIZES = {0, 1, 5, 10, 20, 50, 75, 100, 200, 500, 5000, 10000, 15000, 20000, 30000, 50000, 75000, 100000,
-                       200000, 300000}
+from game_analyzer.utils import amount_string_to_int
 
 
 # define a InvalidFrameError exception
@@ -119,7 +116,7 @@ class GameAnalyzer:
                     'lucky_region_warning': None,
                 }
                 for box in result.boxes:
-                    if box.cls == YOLO_CLASSES[DetectionClass.AVAILABLE_PRIZE]:
+                    if box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.AVAILABLE_PRIZE]:
                         recognized_text = extract_string_from_box(box, result.orig_img)
                         try: # Try to convert the recognized text to an integer
                             amount = amount_string_to_int(recognized_text)
@@ -130,30 +127,33 @@ class GameAnalyzer:
                         except Exception as e:
                             x1, y1, x2, y2 = box.xyxy[0]  # Extract bounding box coordinates
                             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)  # Convert to integers
-                            roi = result.orig_img[y1:y2, x1:x2]  # Extract ROI from the image
-                            cv2.imshow('frame', roi)
-                            cv2.waitKey(0)
-                            cv2.destroyAllWindows()
+                            #roi = result.orig_img[y1:y2, x1:x2]  # Extract ROI from the image
+                            roi = result.orig_img
+                            # save image to disk
+                            #cv2.imwrite(f"invalid_frame_{idx}.jpg", roi)
+                            # cv2.imshow('frame', roi)
+                            # cv2.waitKey(0)
+                            # cv2.destroyAllWindows()
                             raise InvalidFrameError(f"Invalid frame")
 
 
-                    elif box.cls == YOLO_CLASSES[DetectionClass.OFFER]:
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.OFFER]:
                         recognized_text = extract_string_from_box(box, result.orig_img)
                         offer = amount_string_to_int(recognized_text)
                         state['offer'] = offer
 
-                    elif box.cls == YOLO_CLASSES[DetectionClass.ACCEPTED_OFFER]:
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_OFFER]:
                         recognized_text = extract_string_from_box(box, result.orig_img)
                         accepted_offer = amount_string_to_int(recognized_text)
                         state['accepted_offer'] = accepted_offer
 
-                    elif box.cls == YOLO_CLASSES[DetectionClass.CHANGE]:
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.CHANGE]:
                         state['change'] = True
 
-                    elif box.cls == YOLO_CLASSES[DetectionClass.ACCEPTED_CHANGE]:
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_CHANGE]:
                         state['accepted_change'] = True
 
-                    elif box.cls == YOLO_CLASSES[DetectionClass.LUCKY_REGION_WARNING]:
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.LUCKY_REGION_WARNING]:
                         state['lucky_region_warning'] = True
 
                 # Append the state to the list of states if it is valid with respect to the previous state
@@ -198,21 +198,11 @@ def extract_string_from_box(box, image):
     x1, y1, x2, y2 = box.xyxy[0]  # Extract bounding box coordinates
     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)  # Convert to integers
     roi = image[y1:y2, x1:x2]  # Extract ROI from the image
-    recognized_text = recognize_euros(roi)
+    className = YOLO_CLASSES_INT_TO_NAMES[int(box.cls)]
+    recognized_text = recognize_euros(roi, className)
     return recognized_text
 
-def amount_string_to_int(amount_str):
-    """
-    Convert an amount string to an integer.
 
-    Parameters:
-        amount_str (str): The amount string to convert.
-
-    Returns:
-        int: The integer value of the amount string.
-    """
-    amount_str = amount_str.replace('€', '').replace('.', '')
-    return int(amount_str)
 
 def are_equivalent_states(state1, state2):
     """
@@ -341,17 +331,17 @@ def get_meta_state_from_yolo_result(result):
     }
 
     for box in result.boxes:
-        if box.cls == YOLO_CLASSES[DetectionClass.AVAILABLE_PRIZE]:
+        if box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.AVAILABLE_PRIZE]:
             meta_state['available_prizes'].append(1)
-        elif box.cls == YOLO_CLASSES[DetectionClass.OFFER]:
+        elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.OFFER]:
             meta_state['offer'] = True
-        elif box.cls == YOLO_CLASSES[DetectionClass.ACCEPTED_OFFER]:
+        elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_OFFER]:
             meta_state['accepted_offer'] = True
-        elif box.cls == YOLO_CLASSES[DetectionClass.CHANGE]:
+        elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.CHANGE]:
             meta_state['change'] = True
-        elif box.cls == YOLO_CLASSES[DetectionClass.ACCEPTED_CHANGE]:
+        elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_CHANGE]:
             meta_state['accepted_change'] = True
-        elif box.cls == YOLO_CLASSES[DetectionClass.LUCKY_REGION_WARNING]:
+        elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.LUCKY_REGION_WARNING]:
             meta_state['lucky_region_warning'] = True
 
     return meta_state
