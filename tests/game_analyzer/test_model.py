@@ -89,4 +89,9 @@ def test_ocr_recognize_digits_full():
         assert {'available_prize': prize} in class_and_number
 
 
+def test_choose_text_based_on_proposed_texts_and_detection_class():
+    # TODO implement this test to check if the function is able to choose when multiple texts are proposed with same number of votes
+    pass
+
+
 
