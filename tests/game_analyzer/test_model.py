@@ -1,8 +1,9 @@
 import cv2
 import pytest
-from game_analyzer.model import detect_boxes_yolo, recognize_euros
+from game_analyzer.model import detect_boxes_yolo
+from game_analyzer.ocr import recognize_euros, choose_text_based_on_proposed_texts_and_detection_class
 from game_analyzer.utils import amount_string_to_int
-from settings import BASE_DIR, YOLO_CLASSES_NAMES_TO_INT
+from settings import BASE_DIR, YOLO_CLASSES_NAMES_TO_INT, DetectionClass
 
 def get_class_id_from_name(names, class_name):
     for class_id, name in names.items():
@@ -44,15 +45,16 @@ def test_ocr_recognize_digits():
 
             roi = image[y1:y2, x1:x2]  # Extract ROI from the image
 
-            recognized_text = recognize_euros(roi)
-            class_and_number.append({detection.names[int(box.cls)]: recognized_text})
+            recognized_text = recognize_euros(roi, detection.names[int(box.cls)], debug=False)
+            recognized_number = amount_string_to_int(recognized_text)
+            class_and_number.append({detection.names[int(box.cls)]: recognized_number})
 
-    prizes = ['€50', '€100', '€50.000', '€300.000']
+    prizes = [50, 100, 50000, 300000]
     for prize in prizes:
         assert {'available_prize': prize} in class_and_number
 
     # check that the classes "offer" has number 20000
-    assert {'offer': '€20.000'} in class_and_number
+    assert {'offer': 20000} in class_and_number
 
 
 def test_ocr_recognize_digits_full():
@@ -89,9 +91,7 @@ def test_ocr_recognize_digits_full():
         assert {'available_prize': prize} in class_and_number
 
 
-def test_choose_text_based_on_proposed_texts_and_detection_class():
-    # TODO implement this test to check if the function is able to choose when multiple texts are proposed with same number of votes
-    pass
+
 
 
 

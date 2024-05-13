@@ -1,7 +1,8 @@
 import cv2
 from ultralytics import YOLO
 from settings import VIDEO_DIR, YOLO_CLASSES_NAMES_TO_INT, FRAME_EXTRACTION_INTERVAL_SECONDS, DetectionClass, POSSIBLE_PRIZES, YOLO_CLASSES_INT_TO_NAMES
-from game_analyzer.model import detect_boxes_yolo, recognize_euros
+from game_analyzer.model import detect_boxes_yolo
+from game_analyzer.ocr import recognize_euros
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from game_analyzer.utils import amount_string_to_int
 
