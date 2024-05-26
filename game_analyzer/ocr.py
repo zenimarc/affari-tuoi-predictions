@@ -79,13 +79,28 @@ def image_preprocess_2(img, debug=False):
 
     return processed_img
 
+def image_preprocess_3(img, debug=False):
+    # crop the image even more by 5 pixels on each side
+    img = img[5:-5, 5:-5]
+    # Convert the image to grayscale
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+
+    if debug:
+        cv2.imshow('Threshold Image', gray_img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    return gray_img
+
 
 def robust_ocr_extraction(image, detection_class: DetectionClass, debug=False):
     # Prepare different preprocessing methods
     preprocessors = [
         lambda img, _: img,
         image_preprocess,
-        image_preprocess_2
+        image_preprocess_2,
+        image_preprocess_3
     ]
     proposed_texts = []
     for preprocessor in preprocessors:

@@ -1,4 +1,4 @@
-from game_analyzer.game_analyzer import GameAnalyzer, fast_is_same_state_checksum, is_valid_state, is_valid_state_wrt_previous, amount_string_to_int
+from game_analyzer.game_analyzer import GameAnalyzer, fast_is_same_state_checksum, is_valid_state, is_valid_state_wrt_previous, amount_string_to_int, are_equivalent_states
 from settings import BASE_DIR
 import cv2
 import pytest
@@ -7,13 +7,13 @@ import pytest
 def test_extract_game_state_from_yolo_results():
     # Load the video
     #video_path = BASE_DIR / "tests/tests_data/frame1.jpg"
-    video_path = BASE_DIR / "data/videos/21008185_1800.mp4"
+    video_path = BASE_DIR / "data/videos/21017040_1800.mp4"
     game_analyzer = GameAnalyzer(video_path)
 
     frames = game_analyzer.extract_key_frames()
     #frames = [cv2.imread(video_path)]
     results = game_analyzer.detect_boxes_on_frames(frames)
-    states = game_analyzer.extract_game_state_from_yolo_results(results)
+    states = game_analyzer.extract_game_states_from_yolo_results(results)
     assert True
 
 
@@ -240,11 +240,53 @@ def test_is_valid_state_wrt_previous():
     }
     assert not is_valid_state_wrt_previous(state2, state1)
 
+def test_are_equivalent_states():
+    state1 = {
+        'seq': 1,
+        'available_prizes': [100, 200, 300000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state2 = {
+        'seq': 2,
+        'available_prizes': [100, 200, 300000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert are_equivalent_states(state2, state1)
+
+    state1 = {
+        'seq': 1,
+        'available_prizes': [200, 300000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    state2 = {
+        'seq': 2,
+        'available_prizes': [100, 200, 300000],
+        'offer': None,
+        'accepted_offer': None,
+        'change': None,
+        'accepted_change': None,
+        'lucky_region_warning': None,
+    }
+    assert not are_equivalent_states(state2, state1)
+
 def test_amount_string_to_int():
     assert amount_string_to_int("€20.000") == 20000
     assert amount_string_to_int("€20") == 20
     assert amount_string_to_int("€200.000") == 200000
     assert amount_string_to_int("€0") == 0
+
 
 
 

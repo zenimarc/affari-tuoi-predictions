@@ -59,7 +59,7 @@ def test_ocr_recognize_digits():
 
 def test_ocr_recognize_digits_full():
     # Load an image
-    image = cv2.imread(BASE_DIR / "tests/tests_data/frame_fullprizes.jpg")
+    image = cv2.imread(BASE_DIR / "tests/tests_data/frame2.jpg")
     detections = detect_boxes_yolo(image)
     class_and_number = []
     for detection in detections:
@@ -89,6 +89,13 @@ def test_ocr_recognize_digits_full():
                        200000, 300000]
     for prize in prizes:
         assert {'available_prize': prize} in class_and_number
+
+def test_ocr_single_image():
+    image = cv2.imread(BASE_DIR / "tests/tests_data/prizes/prize_1.jpg")
+    class_name = DetectionClass.AVAILABLE_PRIZE
+    recognized_text = recognize_euros(image, class_name, debug=True)
+    amount = amount_string_to_int(recognized_text)
+    assert amount == 1
 
 
 

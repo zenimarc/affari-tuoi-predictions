@@ -1,5 +1,9 @@
-from game_analyzer.validators import ocr_validator
-from settings import DetectionClass, POSSIBLE_PRIZES
+import cv2
+
+from game_analyzer.game_analyzer import GameAnalyzer
+from game_analyzer.validators import ocr_validator, is_valid_first_state
+from settings import DetectionClass, POSSIBLE_PRIZES, BASE_DIR
+
 
 def test_ocr_validator():
     """TEST validators for classes OFFER and AVAILABLE_PRIZE"""
@@ -33,6 +37,19 @@ def test_ocr_validator():
     assert not ocr_validator('€20.001', DetectionClass.AVAILABLE_PRIZE)
     assert not ocr_validator('€20.00.0', DetectionClass.AVAILABLE_PRIZE)
     assert not ocr_validator('20.00.0', DetectionClass.AVAILABLE_PRIZE)
+
+
+def test_first_state_validator():
+    # Load an image
+    image = cv2.imread(BASE_DIR / "tests/tests_data/frame_fullprizes.jpg")
+    # Perform detection
+    ga = GameAnalyzer(image)
+    results = ga.detect_boxes_on_frames(image)
+    state = ga.extract_single_game_state_from_yolo_result(results[0], idx=0)
+    assert is_valid_first_state(state)
+
+
+
 
 
 
