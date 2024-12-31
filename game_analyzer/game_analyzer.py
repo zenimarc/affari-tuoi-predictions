@@ -1,3 +1,6 @@
+import json
+import os
+
 import cv2
 from ultralytics import YOLO
 from settings import VIDEO_DIR, YOLO_CLASSES_NAMES_TO_INT, FRAME_EXTRACTION_INTERVAL_SECONDS, DetectionClass, POSSIBLE_PRIZES, YOLO_CLASSES_INT_TO_NAMES
@@ -5,8 +8,8 @@ from game_analyzer.model import detect_boxes_yolo
 from game_analyzer.ocr import recognize_euros
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from game_analyzer.utils import amount_string_to_int
-from game_analyzer.validators import is_valid_state, is_valid_state_wrt_previous, is_valid_first_state, State
-
+from game_analyzer.validators import is_valid_state, is_valid_state_wrt_previous, is_valid_first_state, State, \
+    ocr_validator
 
 
 # define a InvalidFrameError exception
@@ -18,7 +21,8 @@ class InvalidFrameError(Exception):
 
 
 class GameAnalyzer:
-    def __init__(self, video_path):
+    def __init__(self, video_path, debug=0):
+        self.debug = debug
         self.video_path = str(video_path)
         self.states = []
 
@@ -84,22 +88,30 @@ class GameAnalyzer:
 
         return results
 
-    def extract_single_game_state_from_yolo_result(self, result, idx):
+    def extract_single_game_state_from_yolo_result(self, result, idx, debug=0, threshold=0.80):
         """
         Extract the game state from the YOLOv8 detection results.
 
         Parameters:
             result: The detection results from YOLOv8.
             idx: The index of the frame.
-
+            debug: Whether to display debug information.
+            threshold: The confidence threshold for YOLO detections.
 
         Returns:
             dict: A dictionary containing the game state.
         """
 
+        debug = debug + self.debug
+
         try:
             # Skip if no boxes are detected
             if len(result.boxes) == 0:
+                return None
+
+            # Filter boxes based on the confidence threshold
+            boxes = [box for box in result.boxes if box.conf > threshold]
+            if len(boxes) == 0:
                 return None
 
             # Extract the meta state from the YOLOv8 result (which is a state but without doing OCR on all the boxes)
@@ -120,58 +132,100 @@ class GameAnalyzer:
                 'accepted_change': None,
                 'lucky_region_warning': None,
             }
-            for box in result.boxes:
-                if box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.AVAILABLE_PRIZE]:
-                    recognized_text = extract_string_from_box(box, result.orig_img)
-                    if recognized_text == None:
-                        raise InvalidFrameError(f"Invalid frame")
-                    try: # Try to convert the recognized text to an integer
+            for box in boxes:
+                try:
+                    if box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.AVAILABLE_PRIZE]:
+                        recognized_text = extract_string_from_box(box, result.orig_img, debug=debug)
+                        if recognized_text is None:
+                            raise ValueError("OCR failed for AVAILABLE_PRIZE")
                         amount = amount_string_to_int(recognized_text)
                         if amount not in POSSIBLE_PRIZES:
-                            print(f"Invalid frame with amount {amount} from recognized text {recognized_text}")
-                            raise InvalidFrameError(f"Invalid frame with amount {amount} from recognized text {recognized_text}")
+                            raise ValueError(f"Invalid prize amount: {amount}")
                         state["available_prizes"].append(amount)
-                    except Exception as e:
-                        # x1, y1, x2, y2 = box.xyxy[0]  # Extract bounding box coordinates
-                        # x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)  # Convert to integers
-                        #roi = result.orig_img[y1:y2, x1:x2]  # Extract ROI from the image
-                        # roi = result.orig_img
-                        # save image to disk
-                        #cv2.imwrite(f"invalid_frame_{idx}.jpg", roi)
-                        # cv2.imshow('frame', roi)
-                        # cv2.waitKey(0)
-                        # cv2.destroyAllWindows()
-                        raise InvalidFrameError(f"Invalid frame")
 
-                elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.OFFER]:
-                    recognized_text = extract_string_from_box(box, result.orig_img)
-                    if recognized_text == None:
-                        raise InvalidFrameError(f"Invalid frame")
-                    offer = amount_string_to_int(recognized_text)
-                    state['offer'] = offer
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.OFFER]:
+                        recognized_text = extract_string_from_box(box, result.orig_img, debug=debug)
+                        if recognized_text is None:
+                            raise ValueError("OCR failed for OFFER")
+                        if not ocr_validator(recognized_text, DetectionClass.OFFER):
+                            raise ValueError(f"Invalid offer amount: {recognized_text}")
+                        state['offer'] = amount_string_to_int(recognized_text)
 
-                elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_OFFER]:
-                    recognized_text = extract_string_from_box(box, result.orig_img)
-                    if recognized_text == None:
-                        raise InvalidFrameError(f"Invalid frame")
-                    accepted_offer = amount_string_to_int(recognized_text)
-                    state['accepted_offer'] = accepted_offer
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_OFFER]:
+                        recognized_text = extract_string_from_box(box, result.orig_img, debug=debug)
+                        if recognized_text is None:
+                            raise ValueError("OCR failed for ACCEPTED_OFFER")
+                        state['accepted_offer'] = amount_string_to_int(recognized_text)
 
-                elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.CHANGE]:
-                    state['change'] = True
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.CHANGE]:
+                        state['change'] = True
 
-                elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_CHANGE]:
-                    state['accepted_change'] = True
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.ACCEPTED_CHANGE]:
+                        state['accepted_change'] = True
 
-                elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.LUCKY_REGION_WARNING]:
-                    state['lucky_region_warning'] = True
+                    elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.LUCKY_REGION_WARNING]:
+                        state['lucky_region_warning'] = True
 
-            # sort the available prizes
+                except Exception as e:
+                    if debug > 0:
+                        self._save_debug_info(idx, result, str(e), box)
+                    raise InvalidFrameError(f"Invalid frame: {str(e)}")
+
+            # Sort the available prizes
             state["available_prizes"] = sorted(state["available_prizes"])
-        except InvalidFrameError:
+
+        except InvalidFrameError as e:
+            print(f"Invalid frame: {str(e)}")
             return None
 
         return state
+
+    def _save_debug_info(self, idx, result, error_message, box=None):
+        """
+        Save debug information for a failed detection.
+
+        Parameters:
+            idx: The index of the frame.
+            result: The detection result object.
+            error_message: The error message describing the failure.
+            box: (Optional) The specific box that caused the error.
+        """
+        # Create a debug folder for the specific frame
+        debug_folder = f"debug/frame_{idx}"
+        os.makedirs(debug_folder, exist_ok=True)
+
+        # Save the full image
+        cv2.imwrite(os.path.join(debug_folder, "full_image.jpg"), result.orig_img)
+
+        # Annotate and save the image
+        annotated_img = result.orig_img.copy()
+        for b in result.boxes:
+            x1, y1, x2, y2 = map(int, b.xyxy[0])
+            label = f"{YOLO_CLASSES_INT_TO_NAMES[int(b.cls)]} ({float(b.conf):.2f})"
+            color = (0, 255, 0) if b == box else (0, 0, 255)
+            cv2.rectangle(annotated_img, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(annotated_img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        cv2.imwrite(os.path.join(debug_folder, "annotated_image.jpg"), annotated_img)
+
+        # Save a cropped ROI if a specific box caused the error
+        if box:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            roi = result.orig_img[y1:y2, x1:x2]
+            cv2.imwrite(os.path.join(debug_folder, "roi.jpg"), roi)
+
+        # Save the error message to a log file
+        log_data = {
+            "error_message": error_message,
+            "boxes": [
+                {
+                    "cls": int(b.cls),
+                    "conf": float(b.conf),
+                    "coordinates": list(map(int, b.xyxy[0]))
+                } for b in result.boxes
+            ]
+        }
+        with open(os.path.join(debug_folder, "log.json"), "w") as log_file:
+            json.dump(log_data, log_file, indent=4)
 
     def extract_game_states_from_yolo_results(self, results: list):
         """
@@ -184,7 +238,7 @@ class GameAnalyzer:
             dict: A dictionary containing the game state.
         """
         for idx, result in enumerate(results):
-            state = self.extract_single_game_state_from_yolo_result(result, idx)
+            state = self.extract_single_game_state_from_yolo_result(result, idx, debug=self.debug)
             if state is not None:
                 # Append the state to the list of states if it is valid with respect to the previous state
                 if len(self.states) > 0:
@@ -208,10 +262,21 @@ class GameAnalyzer:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
+    def save_states_to_json(self, states, output_file):
+        """
+        Save the game states to a JSON file.
+
+        Parameters:
+            states: The list of game states to save.
+            output_file: The output JSON file to save the states.
+        """
+        with open(output_file, "w") as f:
+            json.dump(states, f, indent=4)
 
 
 
-def extract_string_from_box(box, image):
+
+def extract_string_from_box(box, image, debug=0):
     """
     Extract the string from a box in an image.
 
@@ -226,7 +291,7 @@ def extract_string_from_box(box, image):
     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)  # Convert to integers
     roi = image[y1:y2, x1:x2]  # Extract ROI from the image
     className = YOLO_CLASSES_INT_TO_NAMES[int(box.cls)]
-    recognized_text = recognize_euros(roi, className)
+    recognized_text = recognize_euros(roi, className, debug)
     return recognized_text
 
 

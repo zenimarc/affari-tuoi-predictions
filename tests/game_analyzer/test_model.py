@@ -91,11 +91,11 @@ def test_ocr_recognize_digits_full():
         assert {'available_prize': prize} in class_and_number
 
 def test_ocr_single_image():
-    image = cv2.imread(BASE_DIR / "tests/tests_data/prizes/prize_1.jpg")
+    image = cv2.imread(BASE_DIR / "tests/tests_data/prizes/prize_0.jpg")
     class_name = DetectionClass.AVAILABLE_PRIZE
     recognized_text = recognize_euros(image, class_name, debug=True)
     amount = amount_string_to_int(recognized_text)
-    assert amount == 1
+    assert amount == 0
 
 
 

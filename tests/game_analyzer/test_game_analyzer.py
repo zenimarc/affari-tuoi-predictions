@@ -7,13 +7,15 @@ import pytest
 def test_extract_game_state_from_yolo_results():
     # Load the video
     #video_path = BASE_DIR / "tests/tests_data/frame1.jpg"
-    video_path = BASE_DIR / "data/videos/21017040_1800.mp4"
-    game_analyzer = GameAnalyzer(video_path)
+    video_path = BASE_DIR / "tests/tests_data/videos/until_first_frame.mp4"
+    game_analyzer = GameAnalyzer(video_path, debug=True)
 
     frames = game_analyzer.extract_key_frames()
     #frames = [cv2.imread(video_path)]
     results = game_analyzer.detect_boxes_on_frames(frames)
     states = game_analyzer.extract_game_states_from_yolo_results(results)
+    # save the states to a file json
+    game_analyzer.save_states_to_json(states, "debug/states.json")
     assert True
 
 

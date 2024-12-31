@@ -6,7 +6,7 @@ from game_analyzer.validators import ocr_validator
 from game_analyzer.utils import levenshtein_distance, custom_similarity
 
 reader = easyocr.Reader(['en'], gpu=True)
-def recognize_euros(roi: np.ndarray, detection_class: DetectionClass, debug=False) -> str:
+def recognize_euros(roi: np.ndarray, detection_class: DetectionClass, debug=0) -> str | None:
     """
     Perform OCR on a single image region (ROI) to recognize digits.
 
@@ -14,7 +14,8 @@ def recognize_euros(roi: np.ndarray, detection_class: DetectionClass, debug=Fals
         roi (np.ndarray): The image region of interest where digits are to be recognized.
 
     Returns:
-        str: A string containing the recognized digits separated by spaces.
+        str: A string containing the recognized digits separated by spaces. If no digits are recognized, returns None.
+        (No validation is performed here)
     """
 
     recognized_text = robust_ocr_extraction(roi, detection_class, debug)
@@ -22,7 +23,7 @@ def recognize_euros(roi: np.ndarray, detection_class: DetectionClass, debug=Fals
     return recognized_text
 
 
-def image_preprocess(img, debug=False):
+def image_preprocess(img, debug=0):
     # Convert the image to HSV color space
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -43,17 +44,14 @@ def image_preprocess(img, debug=False):
     processed_img = cv2.bitwise_not(gray)
 
     # Display the processed image if debug mode is on
-    if debug:
-        cv2.imshow('Original Image', img)
-        cv2.imshow('HSV Mask', mask)
-        cv2.imshow('Resulting Image', res)
+    if debug > 1:
         cv2.imshow('Processed Image', processed_img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
     return processed_img
 
-def image_preprocess_2(img, debug=False):
+def image_preprocess_2(img, debug=0):
     # Convert the image to grayscale
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -72,48 +70,56 @@ def image_preprocess_2(img, debug=False):
     processed_img = cv2.morphologyEx(processed_img, cv2.MORPH_OPEN, kernel, iterations=1)
     processed_img = cv2.morphologyEx(processed_img, cv2.MORPH_CLOSE, kernel, iterations=1)
 
-    if debug:
+    if debug > 1:
         cv2.imshow('Threshold Image', processed_img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
     return processed_img
 
-def image_preprocess_3(img, debug=False):
+def image_preprocess_3(img, debug=0):
     # crop the image even more by 5 pixels on each side
     img = img[5:-5, 5:-5]
     # Convert the image to grayscale
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 
-    if debug:
+    if debug > 1:
         cv2.imshow('Threshold Image', gray_img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
     return gray_img
 
+def image_preprocess_4(img, debug=0):
+    # implement your own preprocessing method
+    return img
 
-def robust_ocr_extraction(image, detection_class: DetectionClass, debug=False):
+
+def robust_ocr_extraction(image, detection_class: DetectionClass, debug=0):
     # Prepare different preprocessing methods
     preprocessors = [
-        lambda img, _: img,
+        lambda img: img,
         image_preprocess,
         image_preprocess_2,
         image_preprocess_3
     ]
     proposed_texts = []
     for preprocessor in preprocessors:
-        processed_img = preprocessor(image, debug)
+        processed_img = preprocessor(image, debug=debug)
         text = reader.readtext(processed_img, detail=0, allowlist='0123456789€.')
         recognized_text = ' '.join(text)
         proposed_texts.append(recognized_text)
 
     chosen_text = choose_text_based_on_proposed_texts_and_detection_class(proposed_texts, detection_class)
 
+    if debug > 0:
+        print("proposed texts: ", proposed_texts)
+        print("chosen text: ", chosen_text)
+
     return chosen_text
 
-def choose_text_based_on_proposed_texts_and_detection_class(proposed_texts, detection_class: DetectionClass) -> str:
+def choose_text_based_on_proposed_texts_and_detection_class(proposed_texts, detection_class: DetectionClass) -> str | None:
     valid_texts = []
     invalid_texts = []
     for text in proposed_texts:
