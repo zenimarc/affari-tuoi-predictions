@@ -102,7 +102,9 @@ class GameAnalyzer:
             dict: A dictionary containing the game state.
         """
 
-        debug = debug + self.debug
+        # debug could be set at self level or at the function level
+        if debug == 0:
+            debug = self.debug
 
         try:
             # Skip if no boxes are detected
@@ -155,6 +157,8 @@ class GameAnalyzer:
                         recognized_text = extract_string_from_box(box, result.orig_img, debug=debug)
                         if recognized_text is None:
                             raise ValueError("OCR failed for ACCEPTED_OFFER")
+                        if not ocr_validator(recognized_text, DetectionClass.ACCEPTED_OFFER):
+                            raise ValueError(f"Invalid offer amount: {recognized_text}")
                         state['accepted_offer'] = amount_string_to_int(recognized_text)
 
                     elif box.cls == YOLO_CLASSES_NAMES_TO_INT[DetectionClass.CHANGE]:
@@ -270,6 +274,10 @@ class GameAnalyzer:
             states: The list of game states to save.
             output_file: The output JSON file to save the states.
         """
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+        # Write the states to the file
         with open(output_file, "w") as f:
             json.dump(states, f, indent=4)
 

@@ -3,7 +3,6 @@ from game_analyzer.utils import amount_string_to_int
 import re
 from typing import List, Optional, TypedDict
 
-regex = r'^€?\d+(?:\.\d+)?$'
 
 def rounded_num_validator(number: int):
     """normally offers are rounded to the nearest 10, so we'll check if the number is rounded to the nearest 10
@@ -12,18 +11,24 @@ def rounded_num_validator(number: int):
     if len(str(number)) >= 3:
         # check it ends with a 0
         return str(number)[-1] == '0'
+
+
 def prizes_validator(text: str):
-    if re.match(regex, text):
+    try:
         amount = amount_string_to_int(text)
         if amount in POSSIBLE_PRIZES:
             return True
-    return False
+    except Exception as e:
+        return False
+
 
 def offer_validator(text: str):
-    if re.match(regex, text):
+    try:
         amount = amount_string_to_int(text)
         validators = [rounded_num_validator, lambda x: x <= max(POSSIBLE_PRIZES)]
         return all(validator(amount) for validator in validators)
+    except Exception as e:
+        return False
 
 
 def ocr_validator(string, detection_class: DetectionClass):

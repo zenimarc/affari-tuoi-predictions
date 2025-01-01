@@ -1,6 +1,8 @@
-def amount_string_to_int(amount_str):
+import re
+
+def amount_string_to_int(amount_str: str):
     """
-    Convert an amount string to an integer.
+    Convert an amount string to an integer by removing all characters except digits.
 
     Parameters:
         amount_str (str): The amount string to convert.
@@ -8,7 +10,10 @@ def amount_string_to_int(amount_str):
     Returns:
         int: The integer value of the amount string.
     """
-    amount_str = amount_str.replace('€', '').replace('.', '')
+    # ensure it's a string
+    amount_str = str(amount_str)
+    # Replace all characters except digits
+    amount_str = re.sub(r'[^0-9]', '', amount_str)
     return int(amount_str)
 
 

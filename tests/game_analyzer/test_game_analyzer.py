@@ -7,8 +7,8 @@ import pytest
 def test_extract_game_state_from_yolo_results():
     # Load the video
     #video_path = BASE_DIR / "tests/tests_data/frame1.jpg"
-    video_path = BASE_DIR / "tests/tests_data/videos/until_first_frame.mp4"
-    game_analyzer = GameAnalyzer(video_path, debug=True)
+    video_path = BASE_DIR / "data/videos/21017040_1800.mp4"
+    game_analyzer = GameAnalyzer(video_path, debug=1)
 
     frames = game_analyzer.extract_key_frames()
     #frames = [cv2.imread(video_path)]
